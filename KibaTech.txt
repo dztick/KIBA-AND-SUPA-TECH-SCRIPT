@@ -1,52 +1,91 @@
--- KIBA TECH Mode (ala YQANTGV31)
-print("[KIBA TECH] Loaded!")
+-- KibaTech_LastHit_7s.lua
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local root = character:WaitForChild("HumanoidRootPart")
 
-local UIS = game:GetService("UserInputService")
-local plr = game.Players.LocalPlayer
-local char = plr.Character or plr.CharacterAdded:Wait()
+-- Remote asli
+local DashRemote = ReplicatedStorage:WaitForChild("DashRemote")
+local M1Remote = ReplicatedStorage:WaitForChild("M1Remote")
 
-local kibaMode = false
-local uppercutFlag = false
-local m1Count = 0
+-- Config
+local KibaTech = {
+    dashUpForce = 15,
+    dashRangeScale = 1.3,
+    lastHitDuration = 7, -- 7 detik
+}
 
--- Toggle mode dengan R
-UIS.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
+-- Status Kiba Tech
+local isActive = false
+local lastHitTarget = nil
+local lastHitTime = 0
+
+-- Event M1 untuk update last hit target
+M1Remote.OnClientEvent:Connect(function(target)
+    if target and target.Parent and target:FindFirstChild("HumanoidRootPart") then
+        lastHitTarget = target.HumanoidRootPart
+        lastHitTime = tick()
+    end
+end)
+
+-- Fungsi Dash ke atas target
+local function KibaDashUp(targetRoot)
+    if targetRoot then
+        local targetPos = targetRoot.Position + Vector3.new(0, KibaTech.dashUpForce, 0)
+        DashRemote:FireServer(targetPos, KibaTech.dashRangeScale)
+        root.CFrame = CFrame.new(targetPos)
+    end
+end
+
+-- Toggle Kiba Tech R Key
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
     if input.KeyCode == Enum.KeyCode.R then
-        kibaMode = not kibaMode
-        print("[KIBA TECH] Mode:", kibaMode and "ENABLED" or "DISABLED")
-    end
-end)
-
--- Detect M1 combo
-UIS.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        m1Count += 1
-        task.delay(1, function() m1Count = 0 end)
-        print("[KIBA TECH] M1 count:", m1Count)
-    end
-end)
-
--- Detect Uppercut = M1 + Space setelah 3 hit
-UIS.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and UIS:IsKeyDown(Enum.KeyCode.Space) and m1Count >= 3 then
-        uppercutFlag = true
-        print("[KIBA TECH] Uppercut detected")
-        task.delay(1, function() uppercutFlag = false end)
-    end
-end)
-
--- Dash (Q)
-UIS.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.Q then
-        if kibaMode and uppercutFlag then
-            print("[KIBA TECH] Kiba Tech Activated!")
-            -- TODO: Ganti dengan remote dash asli
+        if isActive then
+            -- Matikan Kiba Tech
+            isActive = false
+            lastHitTarget = nil
         else
-            print("[KIBA TECH] Normal Dash")
+            -- Aktifkan Kiba Tech
+            isActive = true
+            local now = tick()
+            if lastHitTarget and (now - lastHitTime) <= KibaTech.lastHitDuration then
+                KibaDashUp(lastHitTarget)
+            end
         end
     end
 end)
+
+-- Notifikasi STARTED
+local function showNotification(text,duration)
+    duration = duration or 2
+    local playerGui = player:WaitForChild("PlayerGui",5)
+    if not playerGui then return end
+
+    local gui = Instance.new("ScreenGui", playerGui)
+    gui.ResetOnSpawn = false
+    local label = Instance.new("TextLabel", gui)
+    label.Size = UDim2.new(0,220,0,50)
+    label.Position = UDim2.new(1,-230,1,-70)
+    label.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    label.TextColor3 = Color3.fromRGB(0,255,0)
+    label.TextScaled = true
+    label.Text = text
+    label.BackgroundTransparency = 0.3
+    label.TextTransparency = 1
+
+    for i=0,1,0.05 do
+        label.TextTransparency = 1 - i
+        task.wait(0.03)
+    end
+    task.wait(duration)
+    for i=0,1,0.05 do
+        label.TextTransparency = i
+        task.wait(0.03)
+    end
+    gui:Destroy()
+end
+
+showNotification("KIBA TECH (R Key) READY",2)
