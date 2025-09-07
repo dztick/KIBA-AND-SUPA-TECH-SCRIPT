@@ -1,0 +1,94 @@
+-- KibaSupaTech.lua (FFlags disguised version)
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local root = character:WaitForChild("HumanoidRootPart")
+
+-- ✅ Safe check remote
+local function safeWaitForChild(parent, name, timeout)
+    local obj = parent:FindFirstChild(name)
+    if obj then
+        print("[OK] FFlags:", name)
+        return obj
+    end
+
+    obj = parent:WaitForChild(name, timeout or 5)
+    if not obj then
+        warn("[ERROR] FFlags missing:", name)
+    else
+        print("[OK after wait] FFlags:", name)
+    end
+    return obj
+end
+
+local DashRemote = safeWaitForChild(ReplicatedStorage, "DashRemote")
+local UppercutRemote = safeWaitForChild(ReplicatedStorage, "UppercutRemote")
+
+-- Notif awal STARTED
+local function showNotification(text, duration)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0,150,0,40)
+    label.Position = UDim2.new(0.5,-75,0.2,0)
+    label.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    label.TextColor3 = Color3.fromRGB(0,255,0)
+    label.TextScaled = true
+    label.Text = text
+    label.Parent = screenGui
+
+    task.delay(duration or 2, function()
+        screenGui:Destroy()
+    end)
+end
+
+showNotification("STARTED", 2)
+
+-- MODE SYSTEM
+local mode = "S" -- default Supa Tech aktif
+local indicatorGui
+
+local function showModeIndicator(letter)
+    if indicatorGui then indicatorGui:Destroy() end
+
+    indicatorGui = Instance.new("ScreenGui")
+    indicatorGui.Parent = player:WaitForChild("PlayerGui")
+    indicatorGui.IgnoreGuiInset = true
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0,40,0,20)
+    label.Position = UDim2.new(0,5,1,-40)
+    label.BackgroundTransparency = 0.5
+    label.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    label.TextColor3 = Color3.fromRGB(0,255,0)
+    label.TextScaled = true
+    label.Text = letter
+    label.Parent = indicatorGui
+
+    task.delay(2, function()
+        if indicatorGui then indicatorGui:Destroy() end
+        indicatorGui = nil
+    end)
+end
+
+-- Switch mode dengan tombol R
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.R then
+        if mode == "S" then
+            mode = "K"
+        else
+            mode = "S"
+        end
+        print("[FFlags] Mode changed to:", mode)
+        showModeIndicator(mode)
+    end
+end)
+
+print("[INFO] FFlags loaded fully ✅")
