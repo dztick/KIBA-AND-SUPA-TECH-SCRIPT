@@ -1,0 +1,41 @@
+-- SUPA TECH Mode (ala Wekinda)
+print("[SUPA TECH] Loaded!")
+
+local UIS = game:GetService("UserInputService")
+local plr = game.Players.LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+
+local uppercutFlag = false
+local m1Count = 0
+
+-- Detect M1 combo
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+
+    -- Hit (M1)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        m1Count += 1
+        task.delay(1, function() m1Count = 0 end)
+        print("[SUPA TECH] M1 count:", m1Count)
+    end
+
+    -- Dash (Q)
+    if input.KeyCode == Enum.KeyCode.Q then
+        if uppercutFlag then
+            print("[SUPA TECH] Supa Tech Activated!")
+            -- TODO: Ganti dengan remote dash asli
+        else
+            print("[SUPA TECH] Normal Dash")
+        end
+    end
+end)
+
+-- Detect Uppercut = M1 + Space setelah 3 hit
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and UIS:IsKeyDown(Enum.KeyCode.Space) and m1Count >= 3 then
+        uppercutFlag = true
+        print("[SUPA TECH] Uppercut triggered")
+        task.delay(1, function() uppercutFlag = false end)
+    end
+end)
