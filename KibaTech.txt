@@ -1,0 +1,52 @@
+-- KIBA TECH Mode (ala YQANTGV31)
+print("[KIBA TECH] Loaded!")
+
+local UIS = game:GetService("UserInputService")
+local plr = game.Players.LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+
+local kibaMode = false
+local uppercutFlag = false
+local m1Count = 0
+
+-- Toggle mode dengan R
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.R then
+        kibaMode = not kibaMode
+        print("[KIBA TECH] Mode:", kibaMode and "ENABLED" or "DISABLED")
+    end
+end)
+
+-- Detect M1 combo
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        m1Count += 1
+        task.delay(1, function() m1Count = 0 end)
+        print("[KIBA TECH] M1 count:", m1Count)
+    end
+end)
+
+-- Detect Uppercut = M1 + Space setelah 3 hit
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and UIS:IsKeyDown(Enum.KeyCode.Space) and m1Count >= 3 then
+        uppercutFlag = true
+        print("[KIBA TECH] Uppercut detected")
+        task.delay(1, function() uppercutFlag = false end)
+    end
+end)
+
+-- Dash (Q)
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.Q then
+        if kibaMode and uppercutFlag then
+            print("[KIBA TECH] Kiba Tech Activated!")
+            -- TODO: Ganti dengan remote dash asli
+        else
+            print("[KIBA TECH] Normal Dash")
+        end
+    end
+end)
