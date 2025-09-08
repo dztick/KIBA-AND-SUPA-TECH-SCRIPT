@@ -1,0 +1,90 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+
+local DASH_REMOTE_NAME = "Forward Dash Attack"
+local SUPA_TECH_FLOAT_HEIGHT = 10
+local SUPA_TECH_FLOAT_TIME = 0.2
+local TARGET_LOCK_TIME = 2
+local NOTIF_DURATION = 3
+local DASH_RANGE_MULT = 2 -- lebih jauh
+local M1_HITBOX_MULT = 2 -- lebih besar
+local NO_KNOCKBACK_MASS = 2000
+
+local lastHitTarget = nil
+local lastHitTime = 0
+local autoFollowEnabled = true
+
+local function showNotif(text)
+    local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    local Label = Instance.new("TextLabel", ScreenGui)
+    Label.Text = text
+    Label.Size = UDim2.new(0,200,0,50)
+    Label.Position = UDim2.new(1,-210,1,-60)
+    Label.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    Label.TextColor3 = Color3.fromRGB(0,255,0)
+    Label.TextScaled = true
+    task.delay(NOTIF_DURATION, function() ScreenGui:Destroy() end)
+end
+
+showNotif("STARTED")
+
+local function updateLastHit(target)
+    lastHitTarget = target
+    lastHitTime = tick()
+end
+
+local function supaTech(target)
+    if not target or not target:FindFirstChild("HumanoidRootPart") then return end
+    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local targetRoot = target:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local targetPos = targetRoot.Position + Vector3.new(0,SUPA_TECH_FLOAT_HEIGHT,0)
+    local tweenInfo = TweenInfo.new(SUPA_TECH_FLOAT_TIME, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(root, tweenInfo, {CFrame=CFrame.new(targetPos)})
+    tween:Play()
+end
+
+local function applyBuff(target)
+    if not target or not target:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = target.HumanoidRootPart
+    hrp.CustomPhysicalProperties = PhysicalProperties.new(NO_KNOCKBACK_MASS,0.3,0.5)
+end
+
+for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("RemoteEvent") and obj.Name == DASH_REMOTE_NAME then
+        obj.OnClientEvent:Connect(function(args)
+            local target
+            if autoFollowEnabled and lastHitTarget and tick() - lastHitTime <= TARGET_LOCK_TIME then
+                target = lastHitTarget
+            end
+            if target then
+                supaTech(target)
+                applyBuff(target)
+            end
+        end)
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            if humanoid.Health < humanoid.MaxHealth then
+                updateLastHit(player.Character)
+            end
+        end
+    end
+end)
+
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.Q then
+        autoFollowEnabled = false
+    elseif input.KeyCode == Enum.KeyCode.E then
+        autoFollowEnabled = true
+    end
+end)
