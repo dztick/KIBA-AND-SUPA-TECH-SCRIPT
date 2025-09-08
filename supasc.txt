@@ -1,17 +1,21 @@
--- [SUPA TECH FIXED] Dash Q tapi auto nempel ke musuh terakhir
+-- [SUPA TECH FINAL] Last target hit + auto stay di atas musuh
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+-- Remote dash
 local DashRemote = ReplicatedStorage.Resources.Brother["#Friend"].Communicate
 
 -- State
 local enabled = false
 local lastTarget = nil
 local lastHitTime = 0
-local maxLastHit = 2 -- detik
+local maxLastHit = 7 -- target disimpan max 7 detik
 
 -- GUI status
 local pg = player:WaitForChild("PlayerGui")
@@ -26,64 +30,52 @@ text.Font = Enum.Font.Code
 text.TextSize = 16
 text.Text = "[SUPA TECH] OFF"
 
--- Fungsi dash (Q)
-local function doSupaDash(targetRoot)
-    if not enabled or not targetRoot then return end
-    DashRemote:FireServer({
-        [1] = {
-            ["Dash"] = Enum.KeyCode.W,
-            ["Key"]  = Enum.KeyCode.Q,
-            ["Goal"] = "KeyPress"
-        }
-    })
+-- Fungsi dash
+local function doSupaDash()
+	if not enabled or not lastTarget then return end
+	if tick() - lastHitTime > maxLastHit then return end
+
+	local targetRoot = lastTarget:FindFirstChild("HumanoidRootPart")
+	if not targetRoot then return end
+
+	-- kirim dash ke server
+	DashRemote:FireServer({
+		[1] = { ["Dash"] = Enum.KeyCode.W, ["Key"] = Enum.KeyCode.Q, ["Goal"] = "KeyPress" }
+	})
+
+	-- setelah sedikit delay, hentikan velocity & kunci badan di atas musuh
+	task.delay(0.15, function()
+		if hrp and targetRoot and enabled then
+			hrp.Velocity = Vector3.zero
+			hrp.CFrame = CFrame.new(targetRoot.Position + Vector3.new(0,3,0), targetRoot.Position)
+		end
+	end)
 end
 
--- Heartbeat: kunci posisi supaya nempel di musuh
-RunService.Heartbeat:Connect(function()
-    if not enabled or not lastTarget then return end
-    if tick() - lastHitTime > maxLastHit then return end
-
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local targetRoot = lastTarget:FindFirstChild("HumanoidRootPart")
-    if hrp and targetRoot then
-        -- Paksa posisi kamu ke atas target biar gak kelewatan
-        local offset = Vector3.new(0, 3, 0) -- 3 stud di atas musuh
-        hrp.CFrame = CFrame.new(targetRoot.Position + offset, targetRoot.Position)
-    end
-end)
-
--- Toggle ON/OFF pakai R
+-- Toggle pakai R
 UIS.InputBegan:Connect(function(input,gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.R then
-        enabled = not enabled
-        text.Text = "[SUPA TECH] " .. (enabled and "ON" or "OFF")
-        text.TextColor3 = enabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.R then
+		enabled = not enabled
+		text.Text = "[SUPA TECH] " .. (enabled and "ON" or "OFF")
+		text.TextColor3 = enabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 
-        if enabled and lastTarget then
-            local targetRoot = lastTarget:FindFirstChild("HumanoidRootPart")
-            doSupaDash(targetRoot)
-        end
-    end
+		if enabled then
+			doSupaDash()
+		end
+	end
 end)
 
--- Contoh dummy: pilih target musuh terdekat
--- (nanti bisa diganti dengan “musuh terakhir kena hit”)
-RunService.Heartbeat:Connect(function()
-    if not enabled then return end
-    local nearest, dist = nil, 12
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (p.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then
-                nearest, dist = p.Character, d
-            end
-        end
-    end
-    if nearest then
-        lastTarget = nearest
-        lastHitTime = tick()
-    end
-end)
+-- Update last target saat kena hit (gunakan Communicate juga)
+-- Catat: ini hook OnClientEvent simulasi, sesuaikan jika nama event beda
+for _,r in ipairs(ReplicatedStorage:GetDescendants()) do
+	if r:IsA("RemoteEvent") and r.Name == "Communicate" then
+		r.OnClientEvent:Connect(function(action, target)
+			-- kalau ada argumen target = musuh yang kena hit
+			if target and target:IsA("Model") and target:FindFirstChild("Humanoid") then
+				lastTarget = target
+				lastHitTime = tick()
+			end
+		end)
+	end
+end
