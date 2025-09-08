@@ -1,27 +1,15 @@
--- [KIBA TECH ADAPTIF] by ChatGPT
--- Auto dash ke target terakhir saat animasi trigger dimainkan
--- Toggle ON/OFF dengan tombol R
-
+-- [KIBA TECH - DASH Q]
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 
--- Konfigurasi
-local animationId = "rbxassetid://13294471966" -- ganti kalau perlu
-local delayBeforeRemote = 0.23
-local dashCooldown = 5 -- detik
-local lastTarget = nil
-local lastHitTime = 0
-local maxLastHit = 7 -- detik
-
--- Remote
-local DashRemote = game.ReplicatedStorage.Resources.Brother["#Friend"].Communicate
+local player = Players.LocalPlayer
+local DashRemote = ReplicatedStorage.Resources.Brother["#Friend"].Communicate
 
 -- State
-local kibaEnabled = false
-local onCooldown = false
+local enabled = false
 
--- GUI notif kecil kanan bawah
+-- GUI notif kanan bawah
 local pg = player:WaitForChild("PlayerGui")
 local gui = Instance.new("ScreenGui", pg); gui.ResetOnSpawn = false
 local text = Instance.new("TextLabel", gui)
@@ -34,74 +22,28 @@ text.Font = Enum.Font.Code
 text.TextSize = 16
 text.Text = "[KIBA TECH] OFF"
 
--- Fungsi dash
+-- Fungsi dash Q
 local function doKibaDash()
-	if not kibaEnabled or onCooldown then return end
-	if not lastTarget or (tick() - lastHitTime > maxLastHit) then return end
-
-	local targetRoot = lastTarget:FindFirstChild("HumanoidRootPart")
-	if not targetRoot then return end
-
-	onCooldown = true
-	local dir = (targetRoot.Position - player.Character.HumanoidRootPart.Position).Unit
-
-	-- Fire dash remote
-	DashRemote:FireServer("Dash", dir, 0.25)
-
-	-- Cooldown
-	task.delay(dashCooldown, function()
-		onCooldown = false
-	end)
+    if not enabled then return end
+    DashRemote:FireServer({
+        [1] = {
+            ["Dash"] = Enum.KeyCode.W, -- maju (bisa diganti arah sesuai input)
+            ["Key"]  = Enum.KeyCode.Q,
+            ["Goal"] = "KeyPress"
+        }
+    })
 end
 
--- Bind ke animasi
-local function bindAnim(char)
-	local humanoid = char:WaitForChild("Humanoid")
-	humanoid.AnimationPlayed:Connect(function(track)
-		if kibaEnabled and track.Animation and track.Animation.AnimationId == animationId then
-			task.delay(delayBeforeRemote, function()
-				doKibaDash()
-			end)
-		end
-	end)
-end
-
--- Toggle R
+-- Toggle pakai R
 UIS.InputBegan:Connect(function(input,gp)
-	if gp then return end
-	if input.KeyCode == Enum.KeyCode.R then
-		kibaEnabled = not kibaEnabled
-		text.Text = "[KIBA TECH] " .. (kibaEnabled and "ON" or "OFF")
-		text.TextColor3 = kibaEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-	end
-end)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.R then
+        enabled = not enabled
+        text.Text = "[KIBA TECH] " .. (enabled and "ON" or "OFF")
+        text.TextColor3 = enabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 
--- Simulasi last target (contoh: dummy musuh di workspace)
--- Nanti kamu bisa ganti sesuai remote hitbox asli
-game:GetService("RunService").Heartbeat:Connect(function()
-	-- auto isi lastTarget dengan musuh terdekat sementara (contoh)
-	local nearest = nil
-	local dist = math.huge
-	for _,p in ipairs(Players:GetPlayers()) do
-		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-			local d = (p.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
-			if d < dist then
-				nearest = p.Character
-				dist = d
-			end
-		end
-	end
-	if nearest then
-		lastTarget = nearest
-		lastHitTime = tick()
-	end
+        if enabled then
+            doKibaDash()
+        end
+    end
 end)
-
--- Bind ulang tiap respawn
-player.CharacterAdded:Connect(function(char)
-	task.wait(1)
-	bindAnim(char)
-end)
-if player.Character then
-	bindAnim(player.Character)
-end
