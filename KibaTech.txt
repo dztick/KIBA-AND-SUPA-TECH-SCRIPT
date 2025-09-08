@@ -1,91 +1,105 @@
--- KibaTech_LastHit_7s.lua
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local root = character:WaitForChild("HumanoidRootPart")
 
--- Remote asli
-local DashRemote = ReplicatedStorage:WaitForChild("DashRemote")
-local M1Remote = ReplicatedStorage:WaitForChild("M1Remote")
-
 -- Config
 local KibaTech = {
-    dashUpForce = 15,
-    dashRangeScale = 1.3,
-    lastHitDuration = 7, -- 7 detik
+    floatHeight = 12,
+    floatSpeed = 0.25,
+    chainCooldown = 0.3,
+    lastHitDuration = 7,
+    dashSpeed = 1.5 -- multiplier untuk dash
 }
 
--- Status Kiba Tech
 local isActive = false
 local lastHitTarget = nil
 local lastHitTime = 0
+local lastChainTime = 0
 
--- Event M1 untuk update last hit target
-M1Remote.OnClientEvent:Connect(function(target)
-    if target and target.Parent and target:FindFirstChild("HumanoidRootPart") then
-        lastHitTarget = target.HumanoidRootPart
-        lastHitTime = tick()
+-- Remote M1 untuk update last hit target
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local M1Remote = ReplicatedStorage:FindFirstChild("M1Remote")
+
+if M1Remote then
+    M1Remote.OnClientEvent:Connect(function(target)
+        if target and target.Parent and target:FindFirstChild("HumanoidRootPart") then
+            lastHitTarget = target.HumanoidRootPart
+            lastHitTime = tick()
+        end
+    end)
+end
+
+-- Notifikasi bulat kecil
+local function showCircleNotification(isOn)
+    local playerGui = player:WaitForChild("PlayerGui",5)
+    if not playerGui then return end
+    local gui = Instance.new("ScreenGui", playerGui)
+    gui.ResetOnSpawn = false
+
+    local circle = Instance.new("Frame", gui)
+    circle.Size = UDim2.new(0, 20, 0, 20)
+    circle.Position = UDim2.new(1, -30, 1, -50)
+    circle.AnchorPoint = Vector2.new(0.5, 0.5)
+    circle.BackgroundColor3 = isOn and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    circle.BackgroundTransparency = 0
+    circle.BorderSizePixel = 0
+    circle.ZIndex = 10
+    circle.ClipsDescendants = false
+    circle.Name = "KibaTechNotif"
+    circle.AutomaticSize = Enum.AutomaticSize.None
+    circle.Shape = Enum.FrameShape.Circle -- kalau tidak ada Shape di versi lama, bisa pakai UICorner
+    local uic = Instance.new("UICorner", circle)
+    uic.CornerRadius = UDim.new(0.5,0)
+
+    -- tampil sebentar
+    task.delay(1.5,function()
+        gui:Destroy()
+    end)
+end
+
+-- Fungsi float + dash ke target
+local function floatAndDash(targetRoot)
+    if not targetRoot then return end
+    local now = tick()
+    if now - lastHitTime > KibaTech.lastHitDuration then return end
+
+    lastChainTime = now
+    local targetPos = targetRoot.Position + Vector3.new(0, KibaTech.floatHeight, 0)
+
+    -- Float smooth
+    local t = tick()
+    while isActive and tick() - t < 1 do
+        local currentPos = root.Position
+        local newPos = currentPos:Lerp(targetPos, KibaTech.floatSpeed)
+        root.CFrame = CFrame.new(newPos)
+        RunService.RenderStepped:Wait()
     end
-end)
 
--- Fungsi Dash ke atas target
-local function KibaDashUp(targetRoot)
-    if targetRoot then
-        local targetPos = targetRoot.Position + Vector3.new(0, KibaTech.dashUpForce, 0)
-        DashRemote:FireServer(targetPos, KibaTech.dashRangeScale)
-        root.CFrame = CFrame.new(targetPos)
+    -- Dash client-side ke target
+    if isActive then
+        local direction = (targetRoot.Position - root.Position).Unit
+        root.CFrame = root.CFrame + direction * KibaTech.dashSpeed
+    end
+
+    -- Chaining otomatis
+    if isActive and lastHitTarget and tick() - lastHitTime <= KibaTech.lastHitDuration then
+        task.wait(KibaTech.chainCooldown)
+        floatAndDash(lastHitTarget)
     end
 end
 
--- Toggle Kiba Tech R Key
+-- Toggle R key
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.R then
+        isActive = not isActive
+        showCircleNotification(isActive)
         if isActive then
-            -- Matikan Kiba Tech
-            isActive = false
-            lastHitTarget = nil
-        else
-            -- Aktifkan Kiba Tech
-            isActive = true
-            local now = tick()
-            if lastHitTarget and (now - lastHitTime) <= KibaTech.lastHitDuration then
-                KibaDashUp(lastHitTarget)
-            end
+            floatAndDash(lastHitTarget)
         end
     end
 end)
-
--- Notifikasi STARTED
-local function showNotification(text,duration)
-    duration = duration or 2
-    local playerGui = player:WaitForChild("PlayerGui",5)
-    if not playerGui then return end
-
-    local gui = Instance.new("ScreenGui", playerGui)
-    gui.ResetOnSpawn = false
-    local label = Instance.new("TextLabel", gui)
-    label.Size = UDim2.new(0,220,0,50)
-    label.Position = UDim2.new(1,-230,1,-70)
-    label.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    label.TextColor3 = Color3.fromRGB(0,255,0)
-    label.TextScaled = true
-    label.Text = text
-    label.BackgroundTransparency = 0.3
-    label.TextTransparency = 1
-
-    for i=0,1,0.05 do
-        label.TextTransparency = 1 - i
-        task.wait(0.03)
-    end
-    task.wait(duration)
-    for i=0,1,0.05 do
-        label.TextTransparency = i
-        task.wait(0.03)
-    end
-    gui:Destroy()
-end
-
-showNotification("KIBA TECH (R Key) READY",2)
