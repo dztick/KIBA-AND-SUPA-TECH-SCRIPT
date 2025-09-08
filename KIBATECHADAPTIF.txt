@@ -1,15 +1,15 @@
--- [KIBA TECH - DASH Q]
+-- KIBA TECH versi argumen table (mirip SHIBA)
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UIS = game:GetService("UserInputService")
-
 local player = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local DashRemote = ReplicatedStorage.Resources.Brother["#Friend"].Communicate
 
--- State
+-- Toggle
 local enabled = false
 
--- GUI notif kanan bawah
+-- GUI status
 local pg = player:WaitForChild("PlayerGui")
 local gui = Instance.new("ScreenGui", pg); gui.ResetOnSpawn = false
 local text = Instance.new("TextLabel", gui)
@@ -22,26 +22,22 @@ text.Font = Enum.Font.Code
 text.TextSize = 16
 text.Text = "[KIBA TECH] OFF"
 
--- Fungsi dash Q
+-- Fungsi dash
 local function doKibaDash()
     if not enabled then return end
+    -- contoh: dash ke arah W (maju) pakai Q
     DashRemote:FireServer({
-        [1] = {
-            ["Dash"] = Enum.KeyCode.W, -- maju (bisa diganti arah sesuai input)
-            ["Key"]  = Enum.KeyCode.Q,
-            ["Goal"] = "KeyPress"
-        }
+        [1] = { ["Dash"] = Enum.KeyCode.W, ["Key"] = Enum.KeyCode.Q, ["Goal"] = "KeyPress" }
     })
 end
 
--- Toggle pakai R
+-- Toggle R
 UIS.InputBegan:Connect(function(input,gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.R then
         enabled = not enabled
         text.Text = "[KIBA TECH] " .. (enabled and "ON" or "OFF")
         text.TextColor3 = enabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-
         if enabled then
             doKibaDash()
         end
